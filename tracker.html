@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C for Quantization — Day 1–3</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e14;
+    --surface: #13151f;
+    --surface2: #1a1d2e;
+    --border: #252840;
+    --accent: #7c6af7;
+    --accent2: #f7c26a;
+    --accent3: #6af7c2;
+    --red: #f76a7c;
+    --text: #e2e4f0;
+    --muted: #6b6f8a;
+    --done: #6af7c2;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+    border-radius: 3px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 400;
+    max-width: 520px;
+    line-height: 1.6;
+  }
+
+  /* Progress bar */
+  .progress-bar-wrap {
+    margin-top: 24px;
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    border-radius: 99px;
+    width: 0%;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .progress-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* Day sections */
+  .day-section {
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .day-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .day-badge.d1 { background: #1e1a3f; color: var(--accent); border: 1px solid var(--accent); }
+  .day-badge.d2 { background: #1f2a1a; color: var(--accent3); border: 1px solid var(--accent3); }
+  .day-badge.d3 { background: #2a1f1a; color: var(--accent2); border: 1px solid var(--accent2); }
+
+  .day-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Exercise card */
+  .exercise {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+
+  .exercise:hover {
+    border-color: var(--accent);
+    transform: translateX(3px);
+  }
+
+  .exercise.done {
+    border-color: var(--done);
+    opacity: 0.75;
+  }
+
+  .exercise-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 18px;
+  }
+
+  .checkbox {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: all 0.2s;
+    background: transparent;
+  }
+
+  .done .checkbox {
+    background: var(--done);
+    border-color: var(--done);
+  }
+
+  .checkmark {
+    display: none;
+    color: #0c0e14;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .done .checkmark { display: block; }
+
+  .exercise-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .exercise-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .concept-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent2);
+    background: #2a2210;
+    border: 1px solid #3a3015;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-weight: 400;
+  }
+
+  .exercise-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-weight: 400;
+  }
+
+  .expand-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    padding-top: 3px;
+    transition: color 0.2s;
+  }
+
+  .exercise:hover .expand-btn { color: var(--accent); }
+
+  /* Code panel */
+  .code-panel {
+    display: none;
+    border-top: 1px solid var(--border);
+    background: #0a0c12;
+  }
+
+  .code-panel.open { display: block; }
+
+  .code-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px 16px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .code-tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  .code-content { display: none; }
+  .code-content.active { display: block; }
+
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 20px 22px;
+    overflow-x: auto;
+    color: #cdd6f4;
+    white-space: pre;
+  }
+
+  /* Syntax highlighting */
+  .kw { color: #cba6f7; }   /* keywords */
+  .ty { color: #89dceb; }   /* types */
+  .fn { color: #89b4fa; }   /* functions */
+  .st { color: #a6e3a1; }   /* strings */
+  .cm { color: #585b70; font-style: italic; }  /* comments */
+  .nu { color: #fab387; }   /* numbers */
+  .op { color: #f38ba8; }   /* operators */
+  .py-kw { color: #f38ba8; }
+  .py-fn { color: #89b4fa; }
+  .py-st { color: #a6e3a1; }
+  .py-cm { color: #585b70; font-style: italic; }
+  .py-nu { color: #fab387; }
+
+  .validate-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 10px 22px 14px;
+    color: var(--accent3);
+    border-top: 1px solid var(--border);
+  }
+
+  .validate-note::before {
+    content: '✓ validate: ';
+    color: var(--muted);
+  }
+
+  /* Checkpoint */
+  .checkpoint {
+    background: linear-gradient(135deg, #13151f, #1a1d2e);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-top: 8px;
+    margin-bottom: 36px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .checkpoint-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .checkpoint-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .checkpoint-desc {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  /* Command block */
+  .cmd-block {
+    background: #070810;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent3);
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cmd-block::before {
+    content: '$';
+    color: var(--muted);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .day-section:nth-child(2) { animation-delay: 0.1s; }
+  .day-section:nth-child(3) { animation-delay: 0.2s; }
+  .day-section:nth-child(4) { animation-delay: 0.3s; }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 40px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="tag">Quantization Engine in C</div>
+    <h1>Day 1–3 <span>Exercises</span></h1>
+    <p class="subtitle">Learn C fundamentals through the lens of quantization. Every exercise builds toward your engine. Validate everything against Python.</p>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-label" id="progressLabel">0 / 9 exercises completed</div>
+  </div>
+
+  <!-- DAY 1 -->
+  <div class="day-section">
+    <div class="day-header">
+      <div class="day-badge d1">Day 1</div>
+      <div class="day-title">Compilation, Types & Printf</div>
+    </div>
+
+    <!-- Ex 1 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Hello, Quantization <span class="concept-tag">compilation</span></div>
+          <div class="exercise-desc">Write, compile and run your first C program. Get comfortable with the gcc → run cycle in Codespaces.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c1')">quant_hello.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'cmd1')">commands</div>
+        </div>
+        <div class="code-content active" id="c1"><pre><span class="cm">// quant_hello.c</span>
+<span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Declare variables with explicit types</span>
+    <span class="ty">float</span>  x     = <span class="nu">3.14f</span>;      <span class="cm">// a float value to quantize</span>
+    <span class="ty">float</span>  scale = <span class="nu">0.05f</span>;     <span class="cm">// quantization scale</span>
+    <span class="ty">int</span>    q     = <span class="nu">0</span>;         <span class="cm">// will hold quantized result</span>
+
+    <span class="cm">// Print the values</span>
+    <span class="fn">printf</span>(<span class="st">"Original value : %f\n"</span>, x);
+    <span class="fn">printf</span>(<span class="st">"Scale          : %f\n"</span>, scale);
+    <span class="fn">printf</span>(<span class="st">"Quantized (raw): %d\n"</span>, q);
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="cmd1"><pre><span class="cm"># Compile</span>
+gcc quant_hello.c -o quant_hello
+
+<span class="cm"># Run</span>
+./quant_hello
+
+<span class="cm"># Expected output:</span>
+<span class="cm"># Original value : 3.140000</span>
+<span class="cm"># Scale          : 0.050000</span>
+<span class="cm"># Quantized (raw): 0</span></pre></div>
+        <div class="validate-note">just confirm it compiles and runs without errors</div>
+      </div>
+    </div>
+
+    <!-- Ex 2 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Explore the Types <span class="concept-tag">types</span> <span class="concept-tag">sizeof</span></div>
+          <div class="exercise-desc">See exactly how many bytes each dtype uses. This is why int8 saves memory vs float32 — make it concrete.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c2')">dtypes.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py2')">python equivalent</div>
+        </div>
+        <div class="code-content active" id="c2"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>   <span class="cm">// gives us int8_t, int32_t etc.</span>
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="cm">// The types you'll use in your quantization engine</span>
+    <span class="fn">printf</span>(<span class="st">"float   = %zu bytes\n"</span>, <span class="kw">sizeof</span>(<span class="ty">float</span>));    <span class="cm">// 4 bytes</span>
+    <span class="fn">printf</span>(<span class="st">"int8_t  = %zu bytes\n"</span>, <span class="kw">sizeof</span>(<span class="ty">int8_t</span>));   <span class="cm">// 1 byte  ← quantized weights</span>
+    <span class="fn">printf</span>(<span class="st">"uint8_t = %zu bytes\n"</span>, <span class="kw">sizeof</span>(<span class="ty">uint8_t</span>));  <span class="cm">// 1 byte  ← unsigned variant</span>
+    <span class="fn">printf</span>(<span class="st">"int32_t = %zu bytes\n"</span>, <span class="kw">sizeof</span>(<span class="ty">int32_t</span>));  <span class="cm">// 4 bytes ← accumulator</span>
+
+    <span class="cm">// Range of int8_t: -128 to 127</span>
+    <span class="ty">int8_t</span> min_val = <span class="nu">-128</span>;
+    <span class="ty">int8_t</span> max_val = <span class="nu">127</span>;
+    <span class="fn">printf</span>(<span class="st">"int8_t range: %d to %d\n"</span>, min_val, max_val);
+
+    <span class="cm">// Memory savings: 1024 float32 weights vs int8</span>
+    <span class="ty">int</span> n = <span class="nu">1024</span>;
+    <span class="fn">printf</span>(<span class="st">"\n%d weights as float32: %zu bytes\n"</span>, n, n * <span class="kw">sizeof</span>(<span class="ty">float</span>));
+    <span class="fn">printf</span>(<span class="st">"%d weights as int8   : %zu bytes\n"</span>, n, n * <span class="kw">sizeof</span>(<span class="ty">int8_t</span>));
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py2"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+<span class="py-cm"># Same concept in numpy</span>
+<span class="py-fn">print</span>(<span class="py-st">f"float32 = {np.dtype('float32').itemsize} bytes"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"int8    = {np.dtype('int8').itemsize} bytes"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"int32   = {np.dtype('int32').itemsize} bytes"</span>)
+
+<span class="py-cm"># Memory savings</span>
+n = <span class="py-nu">1024</span>
+<span class="py-fn">print</span>(<span class="py-st">f"\n{n} weights as float32: {n * 4} bytes"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"{n} weights as int8   : {n * 1} bytes"</span>)</pre></div>
+        <div class="validate-note">run both — outputs must match byte counts exactly</div>
+      </div>
+    </div>
+
+    <!-- Ex 3 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Your First C Function <span class="concept-tag">functions</span> <span class="concept-tag">return types</span></div>
+          <div class="exercise-desc">Write quantize_scalar() — the atomic unit of your entire engine. This single function is the foundation of everything.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c3')">quantize_scalar.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py3')">python equivalent</div>
+          <div class="code-tab" onclick="switchTab(this, 'cmd3')">commands</div>
+        </div>
+        <div class="code-content active" id="c3"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>     <span class="cm">// for roundf()</span>
+
+<span class="cm">/* Quantize a single float to int8
+   Formula: q = clamp(round(x / scale), -128, 127)  */</span>
+<span class="ty">int8_t</span> <span class="fn">quantize_scalar</span>(<span class="ty">float</span> x, <span class="ty">float</span> scale) {
+    <span class="ty">float</span> q_float = <span class="fn">roundf</span>(x / scale);
+
+    <span class="cm">// Clamp to int8 range [-128, 127]</span>
+    <span class="kw">if</span> (q_float >  <span class="nu">127.0f</span>) q_float =  <span class="nu">127.0f</span>;
+    <span class="kw">if</span> (q_float < <span class="nu">-128.0f</span>) q_float = <span class="nu">-128.0f</span>;
+
+    <span class="kw">return</span> (<span class="ty">int8_t</span>)q_float;
+}
+
+<span class="cm">/* Dequantize int8 back to float */</span>
+<span class="ty">float</span> <span class="fn">dequantize_scalar</span>(<span class="ty">int8_t</span> q, <span class="ty">float</span> scale) {
+    <span class="kw">return</span> (<span class="ty">float</span>)q * scale;
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="ty">float</span> scale = <span class="nu">0.05f</span>;
+
+    <span class="cm">// Test values</span>
+    <span class="ty">float</span> test[] = { <span class="nu">1.2f</span>, <span class="nu">-0.5f</span>, <span class="nu">3.1f</span>, <span class="nu">-2.8f</span>, <span class="nu">0.0f</span> };
+    <span class="ty">int</span>   n      = <span class="nu">5</span>;
+
+    <span class="fn">printf</span>(<span class="st">"%-10s %-10s %-12s %-10s\n"</span>,
+           <span class="st">"original"</span>, <span class="st">"quantized"</span>, <span class="st">"dequantized"</span>, <span class="st">"error"</span>);
+    <span class="fn">printf</span>(<span class="st">"------------------------------------------\n"</span>);
+
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">int8_t</span> q    = <span class="fn">quantize_scalar</span>(test[i], scale);
+        <span class="ty">float</span>  back = <span class="fn">dequantize_scalar</span>(q, scale);
+        <span class="ty">float</span>  err  = test[i] - back;
+        <span class="fn">printf</span>(<span class="st">"%-10.4f %-10d %-12.4f %-10.4f\n"</span>,
+               test[i], q, back, err);
+    }
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py3"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+<span class="py-kw">def</span> <span class="py-fn">quantize_scalar</span>(x, scale):
+    q = np.round(x / scale)
+    <span class="py-kw">return</span> np.clip(q, -<span class="py-nu">128</span>, <span class="py-nu">127</span>).astype(np.int8)
+
+<span class="py-kw">def</span> <span class="py-fn">dequantize_scalar</span>(q, scale):
+    <span class="py-kw">return</span> float(q) * scale
+
+scale = <span class="py-nu">0.05</span>
+test  = [<span class="py-nu">1.2</span>, <span class="py-nu">-0.5</span>, <span class="py-nu">3.1</span>, <span class="py-nu">-2.8</span>, <span class="py-nu">0.0</span>]
+
+<span class="py-fn">print</span>(<span class="py-st">f"{'original':<10} {'quantized':<10} {'dequantized':<12} {'error':<10}"</span>)
+<span class="py-fn">print</span>(<span class="py-st">"-" * 42</span>)
+<span class="py-kw">for</span> x <span class="py-kw">in</span> test:
+    q    = quantize_scalar(x, scale)
+    back = dequantize_scalar(q, scale)
+    err  = x - back
+    <span class="py-fn">print</span>(<span class="py-st">f"{x:<10.4f} {int(q):<10} {back:<12.4f} {err:<10.4f}"</span>)</pre></div>
+        <div class="code-content" id="cmd3"><pre><span class="cm"># Compile — note the -lm flag for math library</span>
+gcc quantize_scalar.c -o quantize_scalar -lm
+
+<span class="cm"># Run C version</span>
+./quantize_scalar
+
+<span class="cm"># Run Python version alongside</span>
+python3 validate.py
+
+<span class="cm"># Both tables must match exactly</span></pre></div>
+        <div class="validate-note">C output table must match Python output row by row</div>
+      </div>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-icon">🏁</div>
+      <div>
+        <div class="checkpoint-title">Day 1 Checkpoint</div>
+        <div class="checkpoint-desc">You can compile C, understand explicit types, and have a working <code>quantize_scalar()</code> validated against NumPy. That function is literally the core of bitsandbytes — you just built it.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- DAY 2 -->
+  <div class="day-section">
+    <div class="day-header">
+      <div class="day-badge d2">Day 2</div>
+      <div class="day-title">Arrays, Loops & Calibration</div>
+    </div>
+
+    <!-- Ex 4 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Quantize an Array <span class="concept-tag">arrays</span> <span class="concept-tag">for loops</span></div>
+          <div class="exercise-desc">Extend your scalar function to work on a whole array of floats. This is a tensor quantization in miniature.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c4')">quant_array.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py4')">python equivalent</div>
+        </div>
+        <div class="code-content active" id="c4"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>
+
+<span class="cm">/* Quantize a whole array of floats to int8
+   input  : float array  (length n)
+   output : int8_t array (length n) — caller must allocate this!
+   scale  : quantization scale                               */</span>
+<span class="ty">void</span> <span class="fn">quantize_array</span>(<span class="ty">float</span>* input, <span class="ty">int8_t</span>* output, <span class="ty">int</span> n, <span class="ty">float</span> scale) {
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> q = <span class="fn">roundf</span>(input[i] / scale);
+        <span class="kw">if</span> (q >  <span class="nu">127.0f</span>) q =  <span class="nu">127.0f</span>;
+        <span class="kw">if</span> (q < <span class="nu">-128.0f</span>) q = <span class="nu">-128.0f</span>;
+        output[i] = (<span class="ty">int8_t</span>)q;
+    }
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="cm">// Stack-allocated arrays (fixed size known at compile time)</span>
+    <span class="ty">float</span>  weights[] = { <span class="nu">0.8f</span>, <span class="nu">-1.2f</span>, <span class="nu">0.3f</span>, <span class="nu">2.1f</span>,
+                         <span class="nu">-0.7f</span>, <span class="nu">1.5f</span>, <span class="nu">-2.0f</span>, <span class="nu">0.1f</span> };
+    <span class="ty">int8_t</span> quantized[<span class="nu">8</span>];   <span class="cm">// output array — same length</span>
+    <span class="ty">int</span>    n     = <span class="nu">8</span>;
+    <span class="ty">float</span>  scale = <span class="nu">0.02f</span>;
+
+    <span class="fn">quantize_array</span>(weights, quantized, n, scale);
+
+    <span class="cm">// Print results</span>
+    <span class="fn">printf</span>(<span class="st">"Weights : "</span>);
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) <span class="fn">printf</span>(<span class="st">"%6.2f "</span>, weights[i]);
+    <span class="fn">printf</span>(<span class="st">"\n"</span>);
+
+    <span class="fn">printf</span>(<span class="st">"Int8    : "</span>);
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) <span class="fn">printf</span>(<span class="st">"%6d "</span>, quantized[i]);
+    <span class="fn">printf</span>(<span class="st">"\n"</span>);
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py4"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+weights = np.array([<span class="py-nu">0.8</span>, <span class="py-nu">-1.2</span>, <span class="py-nu">0.3</span>, <span class="py-nu">2.1</span>,
+                    <span class="py-nu">-0.7</span>, <span class="py-nu">1.5</span>, <span class="py-nu">-2.0</span>, <span class="py-nu">0.1</span>], dtype=np.float32)
+scale = <span class="py-nu">0.02</span>
+
+quantized = np.clip(np.round(weights / scale), -<span class="py-nu">128</span>, <span class="py-nu">127</span>).astype(np.int8)
+
+<span class="py-fn">print</span>(<span class="py-st">"Weights :"</span>, <span class="py-st">" "</span>.join(<span class="py-st">f"{w:6.2f}"</span> <span class="py-kw">for</span> w <span class="py-kw">in</span> weights))
+<span class="py-fn">print</span>(<span class="py-st">"Int8    :"</span>, <span class="py-st">" "</span>.join(<span class="py-st">f"{q:6d}"</span> <span class="py-kw">for</span> q <span class="py-kw">in</span> quantized))</pre></div>
+        <div class="validate-note">int8 values must match numpy output exactly</div>
+      </div>
+    </div>
+
+    <!-- Ex 5 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Absmax Calibration <span class="concept-tag">calibration</span> <span class="concept-tag">math.h</span></div>
+          <div class="exercise-desc">Compute the scale automatically from data using absmax — the same method bitsandbytes uses for symmetric quantization.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c5')">calibrate.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py5')">python equivalent</div>
+        </div>
+        <div class="code-content active" id="c5"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>
+
+<span class="cm">/* Compute absmax scale for symmetric int8 quantization
+   scale = max(|x|) / 127                               */</span>
+<span class="ty">float</span> <span class="fn">compute_scale_absmax</span>(<span class="ty">float</span>* data, <span class="ty">int</span> n) {
+    <span class="ty">float</span> max_abs = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> abs_val = <span class="fn">fabsf</span>(data[i]);
+        <span class="kw">if</span> (abs_val > max_abs) max_abs = abs_val;
+    }
+    <span class="kw">return</span> max_abs / <span class="nu">127.0f</span>;
+}
+
+<span class="ty">void</span> <span class="fn">quantize_array</span>(<span class="ty">float</span>* in, <span class="ty">int8_t</span>* out, <span class="ty">int</span> n, <span class="ty">float</span> scale) {
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> q = <span class="fn">roundf</span>(in[i] / scale);
+        <span class="kw">if</span> (q >  <span class="nu">127.0f</span>) q =  <span class="nu">127.0f</span>;
+        <span class="kw">if</span> (q < <span class="nu">-128.0f</span>) q = <span class="nu">-128.0f</span>;
+        out[i] = (<span class="ty">int8_t</span>)q;
+    }
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="ty">float</span> weights[] = { <span class="nu">0.12f</span>, <span class="nu">-0.88f</span>, <span class="nu">0.45f</span>, <span class="nu">1.23f</span>,
+                        <span class="nu">-0.34f</span>, <span class="nu">0.67f</span>, <span class="nu">-1.10f</span>, <span class="nu">0.05f</span> };
+    <span class="ty">int</span> n = <span class="nu">8</span>;
+
+    <span class="cm">// Auto-compute scale from data</span>
+    <span class="ty">float</span> scale = <span class="fn">compute_scale_absmax</span>(weights, n);
+    <span class="fn">printf</span>(<span class="st">"Computed scale: %.6f\n"</span>, scale);
+
+    <span class="ty">int8_t</span> quantized[<span class="nu">8</span>];
+    <span class="fn">quantize_array</span>(weights, quantized, n, scale);
+
+    <span class="fn">printf</span>(<span class="st">"Original : "</span>);
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) <span class="fn">printf</span>(<span class="st">"%7.3f"</span>, weights[i]);
+    <span class="fn">printf</span>(<span class="st">"\nInt8     : "</span>);
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) <span class="fn">printf</span>(<span class="st">"%7d"</span>, quantized[i]);
+    <span class="fn">printf</span>(<span class="st">"\n"</span>);
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py5"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+weights = np.array([<span class="py-nu">0.12</span>, <span class="py-nu">-0.88</span>, <span class="py-nu">0.45</span>, <span class="py-nu">1.23</span>,
+                    <span class="py-nu">-0.34</span>, <span class="py-nu">0.67</span>, <span class="py-nu">-1.10</span>, <span class="py-nu">0.05</span>], dtype=np.float32)
+
+<span class="py-cm"># Absmax calibration — same as bitsandbytes symmetric mode</span>
+scale = np.max(np.abs(weights)) / <span class="py-nu">127.0</span>
+<span class="py-fn">print</span>(<span class="py-st">f"Computed scale: {scale:.6f}"</span>)
+
+quantized = np.clip(np.round(weights / scale), -<span class="py-nu">128</span>, <span class="py-nu">127</span>).astype(np.int8)
+<span class="py-fn">print</span>(<span class="py-st">"Original :"</span>, <span class="py-st">" "</span>.join(<span class="py-st">f"{w:7.3f}"</span> <span class="py-kw">for</span> w <span class="py-kw">in</span> weights))
+<span class="py-fn">print</span>(<span class="py-st">"Int8     :"</span>, <span class="py-st">" "</span>.join(<span class="py-st">f"{q:7d}"</span> <span class="py-kw">for</span> q <span class="py-kw">in</span> quantized))</pre></div>
+        <div class="validate-note">scale value and int8 array must match Python exactly</div>
+      </div>
+    </div>
+
+    <!-- Ex 6 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Compute Quantization Error <span class="concept-tag">MSE</span> <span class="concept-tag">math.h</span></div>
+          <div class="exercise-desc">Calculate mean squared error between original and dequantized values. This is how you'll measure quality of your engine later.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c6')">quant_error.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py6')">python equivalent</div>
+        </div>
+        <div class="code-content active" id="c6"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>
+
+<span class="cm">/* Mean Squared Error between original and dequantized */</span>
+<span class="ty">float</span> <span class="fn">compute_mse</span>(<span class="ty">float</span>* original, <span class="ty">int8_t</span>* quantized,
+                   <span class="ty">int</span> n, <span class="ty">float</span> scale) {
+    <span class="ty">float</span> sum = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> dequant = (<span class="ty">float</span>)quantized[i] * scale;
+        <span class="ty">float</span> diff    = original[i] - dequant;
+        sum += diff * diff;
+    }
+    <span class="kw">return</span> sum / (<span class="ty">float</span>)n;
+}
+
+<span class="ty">float</span> <span class="fn">compute_scale_absmax</span>(<span class="ty">float</span>* data, <span class="ty">int</span> n) {
+    <span class="ty">float</span> max_abs = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> a = <span class="fn">fabsf</span>(data[i]);
+        <span class="kw">if</span> (a > max_abs) max_abs = a;
+    }
+    <span class="kw">return</span> max_abs / <span class="nu">127.0f</span>;
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="ty">float</span>  data[] = { <span class="nu">0.5f</span>, <span class="nu">-1.0f</span>, <span class="nu">1.5f</span>, <span class="nu">-0.25f</span>,
+                      <span class="nu">0.75f</span>, <span class="nu">-0.5f</span>, <span class="nu">1.0f</span>, <span class="nu">-1.5f</span> };
+    <span class="ty">int8_t</span> quantized[<span class="nu">8</span>];
+    <span class="ty">int</span>    n     = <span class="nu">8</span>;
+    <span class="ty">float</span>  scale = <span class="fn">compute_scale_absmax</span>(data, n);
+
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> q = <span class="fn">roundf</span>(data[i] / scale);
+        <span class="kw">if</span> (q >  <span class="nu">127</span>) q =  <span class="nu">127</span>;
+        <span class="kw">if</span> (q < <span class="nu">-128</span>) q = <span class="nu">-128</span>;
+        quantized[i] = (<span class="ty">int8_t</span>)q;
+    }
+
+    <span class="ty">float</span> mse = <span class="fn">compute_mse</span>(data, quantized, n, scale);
+    <span class="fn">printf</span>(<span class="st">"Scale : %.6f\n"</span>, scale);
+    <span class="fn">printf</span>(<span class="st">"MSE   : %.8f\n"</span>, mse);
+    <span class="fn">printf</span>(<span class="st">"RMSE  : %.8f\n"</span>, <span class="fn">sqrtf</span>(mse));
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py6"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+data  = np.array([<span class="py-nu">0.5</span>, <span class="py-nu">-1.0</span>, <span class="py-nu">1.5</span>, <span class="py-nu">-0.25</span>,
+                  <span class="py-nu">0.75</span>, <span class="py-nu">-0.5</span>, <span class="py-nu">1.0</span>, <span class="py-nu">-1.5</span>], dtype=np.float32)
+scale = np.max(np.abs(data)) / <span class="py-nu">127.0</span>
+
+quantized = np.clip(np.round(data / scale), -<span class="py-nu">128</span>, <span class="py-nu">127</span>).astype(np.int8)
+dequant   = quantized.astype(np.float32) * scale
+
+mse  = np.mean((data - dequant) ** <span class="py-nu">2</span>)
+rmse = np.sqrt(mse)
+
+<span class="py-fn">print</span>(<span class="py-st">f"Scale : {scale:.6f}"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"MSE   : {mse:.8f}"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"RMSE  : {rmse:.8f}"</span>)</pre></div>
+        <div class="validate-note">MSE and RMSE values must match Python to 6 decimal places</div>
+      </div>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-icon">🏁</div>
+      <div>
+        <div class="checkpoint-title">Day 2 Checkpoint</div>
+        <div class="checkpoint-desc">You can quantize arrays, auto-compute scale from data (absmax calibration), and measure quantization error. You now understand what Unsloth is doing under the hood when it calibrates weights.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- DAY 3 -->
+  <div class="day-section">
+    <div class="day-header">
+      <div class="day-badge d3">Day 3</div>
+      <div class="day-title">Structs, Conditionals & First Mini-Engine</div>
+    </div>
+
+    <!-- Ex 7 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">QuantParams Struct <span class="concept-tag">structs</span> <span class="concept-tag">typedef</span></div>
+          <div class="exercise-desc">Bundle scale and zero_point into a struct — the same abstraction PyTorch uses internally for quantized tensors.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c7')">quant_params.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py7')">python equivalent</div>
+        </div>
+        <div class="code-content active" id="c7"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>
+
+<span class="cm">/* QuantParams: same concept as torch's per-tensor qparams */</span>
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="ty">float</span>   scale;
+    <span class="ty">int32_t</span> zero_point;   <span class="cm">// 0 for symmetric, nonzero for asymmetric</span>
+} QuantParams;
+
+<span class="cm">/* Calibrate params from data using absmax (symmetric) */</span>
+QuantParams <span class="fn">calibrate_absmax</span>(<span class="ty">float</span>* data, <span class="ty">int</span> n) {
+    <span class="ty">float</span> max_abs = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> a = <span class="fn">fabsf</span>(data[i]);
+        <span class="kw">if</span> (a > max_abs) max_abs = a;
+    }
+    QuantParams p;
+    p.scale      = max_abs / <span class="nu">127.0f</span>;
+    p.zero_point = <span class="nu">0</span>;
+    <span class="kw">return</span> p;
+}
+
+<span class="ty">int8_t</span> <span class="fn">quantize</span>(<span class="ty">float</span> x, QuantParams p) {
+    <span class="ty">float</span> q = <span class="fn">roundf</span>(x / p.scale) + (<span class="ty">float</span>)p.zero_point;
+    <span class="kw">if</span> (q >  <span class="nu">127</span>) q =  <span class="nu">127</span>;
+    <span class="kw">if</span> (q < <span class="nu">-128</span>) q = <span class="nu">-128</span>;
+    <span class="kw">return</span> (<span class="ty">int8_t</span>)q;
+}
+
+<span class="ty">float</span> <span class="fn">dequantize</span>(<span class="ty">int8_t</span> q, QuantParams p) {
+    <span class="kw">return</span> ((<span class="ty">float</span>)q - (<span class="ty">float</span>)p.zero_point) * p.scale;
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="ty">float</span> w[] = { <span class="nu">0.3f</span>, <span class="nu">-0.9f</span>, <span class="nu">1.1f</span>, <span class="nu">-0.4f</span>, <span class="nu">0.7f</span> };
+    <span class="ty">int</span>   n   = <span class="nu">5</span>;
+
+    <span class="cm">// Calibrate — get params automatically</span>
+    QuantParams p = <span class="fn">calibrate_absmax</span>(w, n);
+    <span class="fn">printf</span>(<span class="st">"scale=%.6f  zero_point=%d\n"</span>, p.scale, p.zero_point);
+
+    <span class="cm">// Quantize and dequantize</span>
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">int8_t</span> q    = <span class="fn">quantize</span>(w[i], p);
+        <span class="ty">float</span>  back = <span class="fn">dequantize</span>(q, p);
+        <span class="fn">printf</span>(<span class="st">"%.3f → %4d → %.3f\n"</span>, w[i], q, back);
+    }
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py7"><pre><span class="py-kw">from</span> dataclasses <span class="py-kw">import</span> dataclass
+<span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+<span class="py-cm"># Python equivalent of the QuantParams struct</span>
+@dataclass
+<span class="py-kw">class</span> QuantParams:
+    scale: float
+    zero_point: int = <span class="py-nu">0</span>
+
+<span class="py-kw">def</span> <span class="py-fn">calibrate_absmax</span>(data):
+    <span class="py-kw">return</span> QuantParams(scale=np.max(np.abs(data)) / <span class="py-nu">127.0</span>)
+
+w = np.array([<span class="py-nu">0.3</span>, <span class="py-nu">-0.9</span>, <span class="py-nu">1.1</span>, <span class="py-nu">-0.4</span>, <span class="py-nu">0.7</span>], dtype=np.float32)
+p = calibrate_absmax(w)
+<span class="py-fn">print</span>(<span class="py-st">f"scale={p.scale:.6f}  zero_point={p.zero_point}"</span>)
+
+<span class="py-kw">for</span> x <span class="py-kw">in</span> w:
+    q    = int(np.clip(np.round(x / p.scale), -<span class="py-nu">128</span>, <span class="py-nu">127</span>))
+    back = (q - p.zero_point) * p.scale
+    <span class="py-fn">print</span>(<span class="py-st">f"{x:.3f} → {q:4d} → {back:.3f}"</span>)</pre></div>
+        <div class="validate-note">all rows must match Python → same quantized values and reconstructed floats</div>
+      </div>
+    </div>
+
+    <!-- Ex 8 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Symmetric vs Asymmetric <span class="concept-tag">conditionals</span> <span class="concept-tag">zero_point</span></div>
+          <div class="exercise-desc">Implement both schemes with a flag. Understand why asymmetric (non-zero zero_point) works better for activations like ReLU outputs.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c8')">sym_vs_asym.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py8')">python equivalent</div>
+        </div>
+        <div class="code-content active" id="c8"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> { <span class="ty">float</span> scale; <span class="ty">int32_t</span> zero_point; } QuantParams;
+
+<span class="cm">/* Symmetric: zero_point = 0, scale = max(|x|)/127 */</span>
+QuantParams <span class="fn">calibrate_symmetric</span>(<span class="ty">float</span>* data, <span class="ty">int</span> n) {
+    <span class="ty">float</span> max_abs = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> a = <span class="fn">fabsf</span>(data[i]);
+        <span class="kw">if</span> (a > max_abs) max_abs = a;
+    }
+    QuantParams p = { max_abs / <span class="nu">127.0f</span>, <span class="nu">0</span> };
+    <span class="kw">return</span> p;
+}
+
+<span class="cm">/* Asymmetric: uses full uint8 range [0,255]
+   scale = (max - min) / 255
+   zp    = round(-min / scale)                */</span>
+QuantParams <span class="fn">calibrate_asymmetric</span>(<span class="ty">float</span>* data, <span class="ty">int</span> n) {
+    <span class="ty">float</span> min_val = data[<span class="nu">0</span>], max_val = data[<span class="nu">0</span>];
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">1</span>; i < n; i++) {
+        <span class="kw">if</span> (data[i] < min_val) min_val = data[i];
+        <span class="kw">if</span> (data[i] > max_val) max_val = data[i];
+    }
+    <span class="ty">float</span>   scale = (max_val - min_val) / <span class="nu">255.0f</span>;
+    <span class="ty">int32_t</span> zp    = (<span class="ty">int32_t</span>)<span class="fn">roundf</span>(-min_val / scale);
+    QuantParams p  = { scale, zp };
+    <span class="kw">return</span> p;
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="cm">// ReLU-like output — all positive, asymmetric is better here</span>
+    <span class="ty">float</span> activations[] = { <span class="nu">0.0f</span>, <span class="nu">0.1f</span>, <span class="nu">0.8f</span>, <span class="nu">1.2f</span>,
+                            <span class="nu">0.3f</span>, <span class="nu">2.5f</span>, <span class="nu">0.0f</span>, <span class="nu">1.7f</span> };
+    <span class="ty">int</span> n = <span class="nu">8</span>;
+
+    QuantParams sym  = <span class="fn">calibrate_symmetric</span>(activations, n);
+    QuantParams asym = <span class="fn">calibrate_asymmetric</span>(activations, n);
+
+    <span class="fn">printf</span>(<span class="st">"Symmetric : scale=%.4f  zero_point=%d\n"</span>,
+           sym.scale, sym.zero_point);
+    <span class="fn">printf</span>(<span class="st">"Asymmetric: scale=%.4f  zero_point=%d\n"</span>,
+           asym.scale, asym.zero_point);
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py8"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+acts = np.array([<span class="py-nu">0.0</span>, <span class="py-nu">0.1</span>, <span class="py-nu">0.8</span>, <span class="py-nu">1.2</span>,
+                 <span class="py-nu">0.3</span>, <span class="py-nu">2.5</span>, <span class="py-nu">0.0</span>, <span class="py-nu">1.7</span>], dtype=np.float32)
+
+<span class="py-cm"># Symmetric</span>
+scale_sym = np.max(np.abs(acts)) / <span class="py-nu">127.0</span>
+<span class="py-fn">print</span>(<span class="py-st">f"Symmetric : scale={scale_sym:.4f}  zero_point=0"</span>)
+
+<span class="py-cm"># Asymmetric</span>
+scale_asym = (acts.max() - acts.min()) / <span class="py-nu">255.0</span>
+zp_asym    = int(np.round(-acts.min() / scale_asym))
+<span class="py-fn">print</span>(<span class="py-st">f"Asymmetric: scale={scale_asym:.4f}  zero_point={zp_asym}"</span>)</pre></div>
+        <div class="validate-note">both scale and zero_point must match Python for both schemes</div>
+      </div>
+    </div>
+
+    <!-- Ex 9 -->
+    <div class="exercise" onclick="toggleExercise(this, event)">
+      <div class="exercise-header">
+        <div class="checkbox"><span class="checkmark">✓</span></div>
+        <div class="exercise-meta">
+          <div class="exercise-title">Mini Quantization Engine <span class="concept-tag">integration</span> <span class="concept-tag">end-to-end</span></div>
+          <div class="exercise-desc">Combine everything into one program: calibrate → quantize → dequantize → compute error. This IS your Day 1–3 capstone.</div>
+        </div>
+        <div class="expand-btn">[+]</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-tabs">
+          <div class="code-tab active" onclick="switchTab(this, 'c9')">mini_engine.c</div>
+          <div class="code-tab" onclick="switchTab(this, 'py9')">python equivalent</div>
+          <div class="code-tab" onclick="switchTab(this, 'cmd9')">commands</div>
+        </div>
+        <div class="code-content active" id="c9"><pre><span class="kw">#include</span> <span class="st">&lt;stdio.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;stdint.h&gt;</span>
+<span class="kw">#include</span> <span class="st">&lt;math.h&gt;</span>
+
+<span class="kw">typedef</span> <span class="kw">struct</span> {
+    <span class="ty">float</span>   scale;
+    <span class="ty">int32_t</span> zero_point;
+} QuantParams;
+
+QuantParams <span class="fn">calibrate</span>(<span class="ty">float</span>* data, <span class="ty">int</span> n) {
+    <span class="ty">float</span> max_abs = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> a = <span class="fn">fabsf</span>(data[i]);
+        <span class="kw">if</span> (a > max_abs) max_abs = a;
+    }
+    QuantParams p = { max_abs / <span class="nu">127.0f</span>, <span class="nu">0</span> };
+    <span class="kw">return</span> p;
+}
+
+<span class="ty">void</span> <span class="fn">quantize_tensor</span>(<span class="ty">float</span>* in, <span class="ty">int8_t</span>* out, <span class="ty">int</span> n, QuantParams p) {
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="ty">float</span> q = <span class="fn">roundf</span>(in[i] / p.scale) + p.zero_point;
+        <span class="kw">if</span> (q >  <span class="nu">127</span>) q =  <span class="nu">127</span>;
+        <span class="kw">if</span> (q < <span class="nu">-128</span>) q = <span class="nu">-128</span>;
+        out[i] = (<span class="ty">int8_t</span>)q;
+    }
+}
+
+<span class="ty">void</span> <span class="fn">dequantize_tensor</span>(<span class="ty">int8_t</span>* in, <span class="ty">float</span>* out, <span class="ty">int</span> n, QuantParams p) {
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++)
+        out[i] = ((<span class="ty">float</span>)in[i] - p.zero_point) * p.scale;
+}
+
+<span class="ty">float</span> <span class="fn">mse</span>(<span class="ty">float</span>* a, <span class="ty">float</span>* b, <span class="ty">int</span> n) {
+    <span class="ty">float</span> s = <span class="nu">0.0f</span>;
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) { <span class="ty">float</span> d = a[i]-b[i]; s += d*d; }
+    <span class="kw">return</span> s / n;
+}
+
+<span class="ty">int</span> <span class="fn">main</span>() {
+    <span class="ty">float</span> weights[] = {
+        <span class="nu">0.15f</span>, <span class="nu">-0.92f</span>, <span class="nu">0.44f</span>,  <span class="nu">1.23f</span>,
+       <span class="nu">-0.34f</span>,  <span class="nu">0.68f</span>, <span class="nu">-1.10f</span>, <span class="nu">0.05f</span>,
+        <span class="nu">0.87f</span>, <span class="nu">-0.21f</span>,  <span class="nu">0.63f</span>, <span class="nu">-0.77f</span>
+    };
+    <span class="ty">int</span>    n = <span class="nu">12</span>;
+    <span class="ty">int8_t</span> quantized[<span class="nu">12</span>];
+    <span class="ty">float</span>  reconstructed[<span class="nu">12</span>];
+
+    <span class="cm">// Full pipeline</span>
+    QuantParams p = <span class="fn">calibrate</span>(weights, n);
+    <span class="fn">quantize_tensor</span>(weights, quantized, n, p);
+    <span class="fn">dequantize_tensor</span>(quantized, reconstructed, n, p);
+
+    <span class="fn">printf</span>(<span class="st">"=== Mini Quantization Engine ===\n"</span>);
+    <span class="fn">printf</span>(<span class="st">"scale=%.6f  zero_point=%d\n\n"</span>, p.scale, p.zero_point);
+    <span class="fn">printf</span>(<span class="st">"%-12s %-8s %-12s %-10s\n"</span>,
+           <span class="st">"original"</span>, <span class="st">"int8"</span>, <span class="st">"reconstructed"</span>, <span class="st">"error"</span>);
+    <span class="fn">printf</span>(<span class="st">"------------------------------------------\n"</span>);
+
+    <span class="kw">for</span> (<span class="ty">int</span> i = <span class="nu">0</span>; i < n; i++) {
+        <span class="fn">printf</span>(<span class="st">"%-12.4f %-8d %-12.4f %-10.4f\n"</span>,
+               weights[i], quantized[i],
+               reconstructed[i], weights[i] - reconstructed[i]);
+    }
+
+    <span class="fn">printf</span>(<span class="st">"\nMSE  : %.8f\n"</span>, <span class="fn">mse</span>(weights, reconstructed, n));
+    <span class="fn">printf</span>(<span class="st">"RMSE : %.8f\n"</span>, <span class="fn">sqrtf</span>(<span class="fn">mse</span>(weights, reconstructed, n)));
+
+    <span class="kw">return</span> <span class="nu">0</span>;
+}</pre></div>
+        <div class="code-content" id="py9"><pre><span class="py-kw">import</span> numpy <span class="py-kw">as</span> np
+
+weights = np.array([
+     <span class="py-nu">0.15</span>, <span class="py-nu">-0.92</span>,  <span class="py-nu">0.44</span>,  <span class="py-nu">1.23</span>,
+    <span class="py-nu">-0.34</span>,  <span class="py-nu">0.68</span>, <span class="py-nu">-1.10</span>,  <span class="py-nu">0.05</span>,
+     <span class="py-nu">0.87</span>, <span class="py-nu">-0.21</span>,  <span class="py-nu">0.63</span>, <span class="py-nu">-0.77</span>
+], dtype=np.float32)
+
+scale = np.max(np.abs(weights)) / <span class="py-nu">127.0</span>
+zp    = <span class="py-nu">0</span>
+
+quantized     = np.clip(np.round(weights / scale), -<span class="py-nu">128</span>, <span class="py-nu">127</span>).astype(np.int8)
+reconstructed = quantized.astype(np.float32) * scale
+errors        = weights - reconstructed
+
+<span class="py-fn">print</span>(<span class="py-st">"=== Mini Quantization Engine ==="</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"scale={scale:.6f}  zero_point={zp}\n"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"{'original':<12} {'int8':<8} {'reconstructed':<14} {'error':<10}"</span>)
+<span class="py-fn">print</span>(<span class="py-st">"-" * 44</span>)
+<span class="py-kw">for</span> w, q, r, e <span class="py-kw">in</span> zip(weights, quantized, reconstructed, errors):
+    <span class="py-fn">print</span>(<span class="py-st">f"{w:<12.4f} {int(q):<8} {r:<14.4f} {e:<10.4f}"</span>)
+
+mse = np.mean(errors ** <span class="py-nu">2</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"\nMSE  : {mse:.8f}"</span>)
+<span class="py-fn">print</span>(<span class="py-st">f"RMSE : {np.sqrt(mse):.8f}"</span>)</pre></div>
+        <div class="code-content" id="cmd9"><pre><span class="cm"># Compile</span>
+gcc mini_engine.c -o mini_engine -lm -Wall
+
+<span class="cm"># Run C version</span>
+./mini_engine
+
+<span class="cm"># Run Python validation</span>
+python3 validate_engine.py
+
+<span class="cm"># Check memory</span>
+valgrind ./mini_engine</pre></div>
+        <div class="validate-note">every row in the table must match Python — this is your Day 3 capstone</div>
+      </div>
+    </div>
+
+    <div class="checkpoint">
+      <div class="checkpoint-icon">🎉</div>
+      <div>
+        <div class="checkpoint-title">Day 1–3 Complete</div>
+        <div class="checkpoint-desc">You have a working mini quantization engine in C: calibration, int8 quantization, dequantization, and error measurement — all validated against NumPy. Day 4 starts memory management and heap allocation. You're ready.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const TOTAL = 9;
+
+  function toggleExercise(el, event) {
+    // Don't toggle when clicking tabs inside
+    if (event.target.classList.contains('code-tab')) return;
+
+    const panel = el.querySelector('.code-panel');
+    const btn   = el.querySelector('.expand-btn');
+    const cb    = el.querySelector('.checkbox');
+
+    // If clicking checkbox area — toggle done
+    if (event.target === cb || event.target.classList.contains('checkmark')) {
+      el.classList.toggle('done');
+      updateProgress();
+      return;
+    }
+
+    // Otherwise toggle open/close
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+    btn.textContent = isOpen ? '[+]' : '[-]';
+  }
+
+  function switchTab(tabEl, contentId) {
+    // Find parent panel
+    const panel = tabEl.closest('.code-panel');
+    panel.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    panel.querySelectorAll('.code-content').forEach(c => c.classList.remove('active'));
+    tabEl.classList.add('active');
+    document.getElementById(contentId).classList.add('active');
+  }
+
+  function updateProgress() {
+    const done  = document.querySelectorAll('.exercise.done').length;
+    const pct   = Math.round((done / TOTAL) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent =
+      `${done} / ${TOTAL} exercises completed`;
+  }
+
+  // Allow clicking the checkbox div itself
+  document.querySelectorAll('.checkbox').forEach(cb => {
+    cb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const exercise = cb.closest('.exercise');
+      exercise.classList.toggle('done');
+      updateProgress();
+    });
+  });
+</script>
+</body>
+</html>
