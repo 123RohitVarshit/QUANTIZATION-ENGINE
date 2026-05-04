@@ -56,7 +56,7 @@ Number of tensors: 255
 Number of key-value pairs: 30
 ```
 
-### Day 2 — Metadata Parser (in progress)
+### Day 2 — Metadata Parser ✅
 - Read all 30 key-value metadata pairs
 - Extract architecture, layer count, embedding dimensions, attention heads
 
